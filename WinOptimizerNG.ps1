@@ -117,7 +117,7 @@ while ($true) {
             '^b$' {
                 $history = @(Get-BenchmarkHistory)
                 $label = if ($history.Count -eq 0) { 'vorher' } else { 'nachher' }
-                Write-Host "  Starte Benchmark ('$label') - dauert ca. 10 Sekunden, bitte PC nicht benutzen..." -ForegroundColor Cyan
+                Write-Host "  Starte Benchmark ('$label') - dauert ca. 20 Sekunden, bitte PC nicht benutzen..." -ForegroundColor Cyan
                 $result = Invoke-Benchmark -Label $label
                 Write-Host ("  CPU: {0:N0} Hashes/s | RAM: {1:N0} MB/s | Disk: {2:N0}/{3:N0} MB/s (w/r) | Prozessstart: {4} ms" -f `
                     $result.cpuHashesSec, $result.memCopyMBs, $result.diskWriteMBs, $result.diskReadMBs, $result.spawnMs) -ForegroundColor Green

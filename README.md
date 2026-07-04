@@ -48,12 +48,17 @@ benchmarks\               (zur Laufzeit) gespeicherte Benchmark-Läufe
 
 ## Vorher/Nachher-Benchmark
 
-Menüpunkt `b` misst in ~10 Sekunden CPU (Hashes/s), RAM-Durchsatz (MB/s),
-Datenträger (sequenziell schreiben/lesen) und Prozessstart-Zeit. Der erste
-Lauf wird als Basiswert ("vorher") gespeichert; jeder weitere Lauf zeigt
-automatisch eine Vergleichstabelle mit prozentualem Delta. Unterschiede
-unter 5% sind Messrauschen — das Tool sagt das auch ehrlich dazu, statt
-jede Schwankung als Erfolg zu verkaufen.
+Menüpunkt `b` misst in ~20 Sekunden CPU (Hashes/s), RAM-Durchsatz (MB/s),
+Datenträger (sequenziell schreiben/lesen) und Prozessstart-Zeit — jede
+Metrik als **Median aus 3 Messungen**, um Ausreißer durch Hintergrund-
+aktivität zu glätten. Der erste Lauf wird als Basiswert ("vorher")
+gespeichert; jeder weitere Lauf zeigt automatisch eine Vergleichstabelle
+mit prozentualem Delta.
+
+Jede Metrik hat ein **eigenes Rauschband** (empirisch ermittelte Schwankung
+zwischen identischen Läufen, z.B. RAM ±12%, CPU ±5%). Deltas innerhalb des
+Bands werden als "Rauschen" ausgewiesen statt als Erfolg verkauft — echte
+Wirkung zeigt sich nur außerhalb.
 
 Neue Tweaks werden **nur** in `tweaks.json` ergänzt — kein Code nötig.
 Felder: `id`, `name`, `category`, `description`, `recommended`, optional

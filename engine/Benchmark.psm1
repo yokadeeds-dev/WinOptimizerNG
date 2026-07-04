@@ -1,10 +1,20 @@
 # Benchmark.psm1 - Vorher/Nachher-Leistungsmessung fuer WinOptimizerNG.
-# Vier schnelle Micro-Benchmarks (~10 Sekunden gesamt). Ergebnisse werden als
-# JSON in benchmarks\ gespeichert; Compare-Benchmark zeigt die Differenz
-# zweier Laeufe. Unterschiede unter ~5% sind Messrauschen, keine Wirkung.
+# Vier Micro-Benchmarks, jede Metrik als Median aus 3 Messungen (~20 Sekunden
+# gesamt). Ergebnisse werden als JSON in benchmarks\ gespeichert;
+# Compare-Benchmark zeigt die Differenz zweier Laeufe und blendet Deltas
+# innerhalb des metrik-spezifischen Rauschbands als Rauschen aus.
 
 $script:Root     = Split-Path $PSScriptRoot -Parent
 $script:BenchDir = Join-Path $script:Root 'benchmarks'
+$script:Samples  = 3
+
+function Get-Median {
+    param([double[]]$Values)
+    $sorted = $Values | Sort-Object
+    $mid = [int][math]::Floor($sorted.Count / 2)
+    if ($sorted.Count % 2 -eq 1) { $sorted[$mid] }
+    else { ($sorted[$mid - 1] + $sorted[$mid]) / 2 }
+}
 
 function Measure-CpuScore {
     # SHA256-Hashes pro Sekunde ueber 2 Sekunden - reine CPU-Last, single-thread.
@@ -96,23 +106,25 @@ function Invoke-Benchmark {
     # Fuehrt alle Messungen aus, speichert das Ergebnis und liefert es zurueck.
     param([string]$Label = '')
 
-    Write-Host '  Messe CPU...' -ForegroundColor DarkGray
-    $cpu = Measure-CpuScore
-    Write-Host '  Messe RAM-Durchsatz...' -ForegroundColor DarkGray
-    $mem = Measure-MemoryScore
-    Write-Host '  Messe Datentraeger...' -ForegroundColor DarkGray
-    $disk = Measure-DiskScore
-    Write-Host '  Messe Prozessstart...' -ForegroundColor DarkGray
-    $spawn = Measure-ProcessSpawn
+    $n = $script:Samples
+    Write-Host "  Messe CPU ($n Messungen)..." -ForegroundColor DarkGray
+    $cpu = Get-Median @(1..$n | ForEach-Object { Measure-CpuScore })
+    Write-Host "  Messe RAM-Durchsatz ($n Messungen)..." -ForegroundColor DarkGray
+    $mem = Get-Median @(1..$n | ForEach-Object { Measure-MemoryScore })
+    Write-Host "  Messe Datentraeger ($n Messungen)..." -ForegroundColor DarkGray
+    $diskRuns = @(1..$n | ForEach-Object { Measure-DiskScore })
+    Write-Host "  Messe Prozessstart ($n Messungen)..." -ForegroundColor DarkGray
+    $spawn = Get-Median @(1..$n | ForEach-Object { Measure-ProcessSpawn })
 
     $result = [pscustomobject]@{
         timestamp    = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
         label        = $Label
-        cpuHashesSec = $cpu
-        memCopyMBs   = $mem
-        diskWriteMBs = $disk.writeMBs
-        diskReadMBs  = $disk.readMBs
-        spawnMs      = $spawn
+        samples      = $n
+        cpuHashesSec = [math]::Round($cpu)
+        memCopyMBs   = [math]::Round($mem)
+        diskWriteMBs = [math]::Round((Get-Median $diskRuns.writeMBs))
+        diskReadMBs  = [math]::Round((Get-Median $diskRuns.readMBs))
+        spawnMs      = [math]::Round($spawn, 1)
         system       = Get-SystemSnapshot
     }
 
@@ -134,20 +146,22 @@ function Get-BenchmarkHistory {
 
 function Compare-Benchmark {
     # Gibt eine Vergleichstabelle zweier Laeufe aus. HigherIsBetter gilt fuer
-    # alle Metriken ausser spawnMs.
+    # alle Metriken ausser spawnMs. noisePct ist das empirisch ermittelte
+    # Rauschband der jeweiligen Metrik zwischen identischen Laeufen - Deltas
+    # darunter gelten nicht als Wirkung.
     param($Before, $After)
 
     $metrics = @(
-        @{ key = 'cpuHashesSec'; name = 'CPU (Hashes/s)';        higherBetter = $true },
-        @{ key = 'memCopyMBs';   name = 'RAM-Durchsatz (MB/s)';  higherBetter = $true },
-        @{ key = 'diskWriteMBs'; name = 'Disk schreiben (MB/s)'; higherBetter = $true },
-        @{ key = 'diskReadMBs';  name = 'Disk lesen (MB/s)';     higherBetter = $true },
-        @{ key = 'spawnMs';      name = 'Prozessstart (ms)';     higherBetter = $false }
+        @{ key = 'cpuHashesSec'; name = 'CPU (Hashes/s)';        higherBetter = $true;  noisePct = 5 },
+        @{ key = 'memCopyMBs';   name = 'RAM-Durchsatz (MB/s)';  higherBetter = $true;  noisePct = 12 },
+        @{ key = 'diskWriteMBs'; name = 'Disk schreiben (MB/s)'; higherBetter = $true;  noisePct = 12 },
+        @{ key = 'diskReadMBs';  name = 'Disk lesen (MB/s)';     higherBetter = $true;  noisePct = 8 },
+        @{ key = 'spawnMs';      name = 'Prozessstart (ms)';     higherBetter = $false; noisePct = 15 }
     )
 
     Write-Host ''
-    Write-Host ("  {0,-24} {1,12} {2,12} {3,10}" -f 'Metrik', 'Vorher', 'Nachher', 'Delta') -ForegroundColor Cyan
-    Write-Host ('  ' + '-' * 62)
+    Write-Host ("  {0,-24} {1,12} {2,12} {3,10}  {4}" -f 'Metrik', 'Vorher', 'Nachher', 'Delta', 'Bewertung') -ForegroundColor Cyan
+    Write-Host ('  ' + '-' * 74)
 
     foreach ($m in $metrics) {
         $b = [double]$Before.($m.key)
@@ -155,13 +169,22 @@ function Compare-Benchmark {
         if ($b -eq 0) { continue }
         $delta = (($a - $b) / $b) * 100
         $improved = if ($m.higherBetter) { $delta -gt 0 } else { $delta -lt 0 }
-        $color = if ([math]::Abs($delta) -lt 5) { 'DarkGray' }      # Messrauschen
-                 elseif ($improved)            { 'Green' }
-                 else                          { 'Red' }
-        Write-Host ("  {0,-24} {1,12:N0} {2,12:N0} {3,9:+0.0;-0.0}%" -f $m.name, $b, $a, $delta) -ForegroundColor $color
+        if ([math]::Abs($delta) -lt $m.noisePct) {
+            $color = 'DarkGray'
+            $verdict = "Rauschen (<$($m.noisePct)%)"
+        }
+        elseif ($improved) {
+            $color = 'Green'
+            $verdict = 'besser'
+        }
+        else {
+            $color = 'Red'
+            $verdict = 'schlechter'
+        }
+        Write-Host ("  {0,-24} {1,12:N0} {2,12:N0} {3,9:+0.0;-0.0}%  {4}" -f $m.name, $b, $a, $delta, $verdict) -ForegroundColor $color
     }
     Write-Host ''
-    Write-Host '  Hinweis: Unterschiede unter 5% sind normales Messrauschen.' -ForegroundColor DarkGray
+    Write-Host '  Rauschband je Metrik: empirische Schwankung zwischen identischen Laeufen.' -ForegroundColor DarkGray
 }
 
 Export-ModuleMember -Function Invoke-Benchmark, Get-BenchmarkHistory, Compare-Benchmark
