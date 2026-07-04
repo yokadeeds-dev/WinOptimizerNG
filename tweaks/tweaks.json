@@ -1,0 +1,179 @@
+{
+  "version": "0.1.0",
+  "tweaks": [
+    {
+      "id": "ui-file-extensions",
+      "name": "Dateiendungen anzeigen",
+      "category": "Explorer & UI",
+      "description": "Zeigt Dateiendungen (.exe, .pdf, ...) im Explorer an. Wichtig, um getarnte Dateien zu erkennen.",
+      "recommended": true,
+      "note": "Wirkt nach Explorer-Neustart.",
+      "ops": [
+        { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "HideFileExt", "type": "DWord", "value": 0 }
+      ]
+    },
+    {
+      "id": "ui-launch-to-thispc",
+      "name": "Explorer startet mit 'Dieser PC'",
+      "category": "Explorer & UI",
+      "description": "Der Explorer oeffnet 'Dieser PC' statt der Schnellzugriff-Ansicht.",
+      "recommended": false,
+      "note": "Wirkt nach Explorer-Neustart.",
+      "ops": [
+        { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "LaunchTo", "type": "DWord", "value": 1 }
+      ]
+    },
+    {
+      "id": "ui-classic-context-menu",
+      "name": "Klassisches Kontextmenue (Win11)",
+      "category": "Explorer & UI",
+      "description": "Stellt das vollstaendige Rechtsklick-Menue von Windows 10 wieder her (ohne 'Weitere Optionen anzeigen').",
+      "recommended": false,
+      "minBuild": 22000,
+      "note": "Wirkt nach Explorer-Neustart.",
+      "ops": [
+        { "hive": "HKCU", "path": "Software\\Classes\\CLSID\\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}\\InprocServer32", "name": "", "type": "String", "value": "", "deleteKeyOnRevert": true }
+      ]
+    },
+    {
+      "id": "ui-taskbar-left",
+      "name": "Taskleiste linksbuendig (Win11)",
+      "category": "Explorer & UI",
+      "description": "Richtet Startmenue und Taskleisten-Symbole wie bei Windows 10 links aus.",
+      "recommended": false,
+      "minBuild": 22000,
+      "ops": [
+        { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "TaskbarAl", "type": "DWord", "value": 0 }
+      ]
+    },
+    {
+      "id": "ui-fast-menus",
+      "name": "Menues schneller oeffnen",
+      "category": "Explorer & UI",
+      "description": "Reduziert die kuenstliche Verzoegerung beim Oeffnen von Menues von 400ms auf 150ms.",
+      "recommended": true,
+      "note": "Wirkt nach Neuanmeldung.",
+      "ops": [
+        { "hive": "HKCU", "path": "Control Panel\\Desktop", "name": "MenuShowDelay", "type": "String", "value": "150" }
+      ]
+    },
+    {
+      "id": "perf-startup-delay",
+      "name": "Autostart-Verzoegerung entfernen",
+      "category": "Performance",
+      "description": "Entfernt die kuenstliche Wartezeit, mit der Windows Autostart-Programme nach der Anmeldung verzoegert startet.",
+      "recommended": true,
+      "ops": [
+        { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Serialize", "name": "StartupDelayInMSec", "type": "DWord", "value": 0 }
+      ]
+    },
+    {
+      "id": "perf-hags",
+      "name": "GPU-Hardwareplanung aktivieren",
+      "category": "Performance",
+      "description": "Aktiviert 'Hardwarebeschleunigte GPU-Planung' (HAGS). Kann Latenz bei Spielen reduzieren. Benoetigt moderne GPU + Treiber.",
+      "recommended": false,
+      "minBuild": 19041,
+      "note": "Wirkt nach Neustart.",
+      "ops": [
+        { "hive": "HKLM", "path": "SYSTEM\\CurrentControlSet\\Control\\GraphicsDrivers", "name": "HwSchMode", "type": "DWord", "value": 2 }
+      ]
+    },
+    {
+      "id": "perf-game-mode",
+      "name": "Spielmodus aktivieren",
+      "category": "Performance",
+      "description": "Aktiviert den Windows-Spielmodus (priorisiert Spiele, pausiert Updates waehrend des Spielens).",
+      "recommended": false,
+      "ops": [
+        { "hive": "HKCU", "path": "Software\\Microsoft\\GameBar", "name": "AutoGameModeEnabled", "type": "DWord", "value": 1 }
+      ]
+    },
+    {
+      "id": "perf-gaming-network",
+      "name": "Multimedia-Drosselung reduzieren (Gaming)",
+      "category": "Performance",
+      "description": "Deaktiviert die Netzwerk-Drosselung fuer Multimedia-Anwendungen und gibt Hintergrundprozessen weniger CPU-Reserve. Nur fuer Gaming-PCs sinnvoll.",
+      "recommended": false,
+      "note": "Wirkt nach Neustart.",
+      "ops": [
+        { "hive": "HKLM", "path": "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile", "name": "NetworkThrottlingIndex", "type": "DWord", "value": 4294967295 },
+        { "hive": "HKLM", "path": "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile", "name": "SystemResponsiveness", "type": "DWord", "value": 10 }
+      ]
+    },
+    {
+      "id": "priv-telemetry-min",
+      "name": "Telemetrie auf Minimum",
+      "category": "Datenschutz",
+      "description": "Setzt die Windows-Diagnosedaten per Richtlinie auf die niedrigste Stufe (erforderliche Daten).",
+      "recommended": true,
+      "ops": [
+        { "hive": "HKLM", "path": "SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection", "name": "AllowTelemetry", "type": "DWord", "value": 1 }
+      ]
+    },
+    {
+      "id": "priv-advertising-id",
+      "name": "Werbe-ID deaktivieren",
+      "category": "Datenschutz",
+      "description": "Deaktiviert die eindeutige Werbe-ID, mit der Apps personalisierte Werbung ausspielen.",
+      "recommended": true,
+      "ops": [
+        { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\AdvertisingInfo", "name": "Enabled", "type": "DWord", "value": 0 }
+      ]
+    },
+    {
+      "id": "priv-tailored-experiences",
+      "name": "Personalisierte Vorschlaege deaktivieren",
+      "category": "Datenschutz",
+      "description": "Verhindert, dass Windows Diagnosedaten fuer 'massgeschneiderte Erlebnisse' (Tipps, Werbung, Empfehlungen) nutzt.",
+      "recommended": true,
+      "ops": [
+        { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Privacy", "name": "TailoredExperiencesWithDiagnosticDataEnabled", "type": "DWord", "value": 0 }
+      ]
+    },
+    {
+      "id": "priv-activity-feed",
+      "name": "Aktivitaetsverlauf deaktivieren",
+      "category": "Datenschutz",
+      "description": "Deaktiviert den Windows-Aktivitaetsverlauf (Timeline) und dessen Veroeffentlichung.",
+      "recommended": true,
+      "ops": [
+        { "hive": "HKLM", "path": "SOFTWARE\\Policies\\Microsoft\\Windows\\System", "name": "EnableActivityFeed", "type": "DWord", "value": 0 },
+        { "hive": "HKLM", "path": "SOFTWARE\\Policies\\Microsoft\\Windows\\System", "name": "PublishUserActivities", "type": "DWord", "value": 0 }
+      ]
+    },
+    {
+      "id": "priv-search-web",
+      "name": "Web-Ergebnisse in Startmenue-Suche aus",
+      "category": "Datenschutz",
+      "description": "Entfernt Bing-/Web-Vorschlaege aus der Startmenue-Suche. Die Suche wird dadurch auch schneller.",
+      "recommended": true,
+      "minBuild": 19041,
+      "note": "Wirkt nach Neuanmeldung.",
+      "ops": [
+        { "hive": "HKCU", "path": "Software\\Policies\\Microsoft\\Windows\\Explorer", "name": "DisableSearchBoxSuggestions", "type": "DWord", "value": 1 }
+      ]
+    },
+    {
+      "id": "priv-feedback-requests",
+      "name": "Feedback-Anfragen deaktivieren",
+      "category": "Datenschutz",
+      "description": "Windows fragt nicht mehr regelmaessig nach Feedback.",
+      "recommended": true,
+      "ops": [
+        { "hive": "HKCU", "path": "Software\\Microsoft\\Siuf\\Rules", "name": "NumberOfSIUFInPeriod", "type": "DWord", "value": 0 }
+      ]
+    },
+    {
+      "id": "priv-start-recommendations",
+      "name": "App-Empfehlungen im Startmenue aus (Win11)",
+      "category": "Datenschutz",
+      "description": "Blendet beworbene App-Vorschlaege ('Empfohlen') im Windows-11-Startmenue aus.",
+      "recommended": false,
+      "minBuild": 22000,
+      "ops": [
+        { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "Start_IrisRecommendations", "type": "DWord", "value": 0 }
+      ]
+    }
+  ]
+}
