@@ -1,3 +1,4 @@
 # Laufzeit-Dateien (Undo-Backups und Logs bleiben lokal)
 state.json
 logs/
+benchmarks/

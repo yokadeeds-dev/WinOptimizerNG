@@ -39,10 +39,21 @@ Registry-Werte.
 ```
 WinOptimizerNG.ps1        Einstieg: Elevation, interaktives Menü
 engine\TweakEngine.psm1   Engine: Status, Apply, Revert, Backup, Log
+engine\Benchmark.psm1     Vorher/Nachher-Benchmark (CPU, RAM, Disk, Prozessstart)
 tweaks\tweaks.json        Tweak-Definitionen als reine Daten
 state.json                (zur Laufzeit) Originalwerte für Undo
 logs\                     (zur Laufzeit) Tages-Logdateien
+benchmarks\               (zur Laufzeit) gespeicherte Benchmark-Läufe
 ```
+
+## Vorher/Nachher-Benchmark
+
+Menüpunkt `b` misst in ~10 Sekunden CPU (Hashes/s), RAM-Durchsatz (MB/s),
+Datenträger (sequenziell schreiben/lesen) und Prozessstart-Zeit. Der erste
+Lauf wird als Basiswert ("vorher") gespeichert; jeder weitere Lauf zeigt
+automatisch eine Vergleichstabelle mit prozentualem Delta. Unterschiede
+unter 5% sind Messrauschen — das Tool sagt das auch ehrlich dazu, statt
+jede Schwankung als Erfolg zu verkaufen.
 
 Neue Tweaks werden **nur** in `tweaks.json` ergänzt — kein Code nötig.
 Felder: `id`, `name`, `category`, `description`, `recommended`, optional

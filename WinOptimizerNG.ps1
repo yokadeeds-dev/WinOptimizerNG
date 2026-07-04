@@ -23,6 +23,7 @@ if (-not $identity.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrat
 }
 
 Import-Module (Join-Path $PSScriptRoot 'engine\TweakEngine.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'engine\Benchmark.psm1') -Force
 
 function Show-Menu {
     param($Tweaks)
@@ -54,6 +55,7 @@ function Show-Menu {
     Write-Host '  Nummer  = Tweak umschalten (an/aus)   * = empfohlen'
     Write-Host '  i <Nr>  = Details zu einem Tweak'
     Write-Host '  a       = alle empfohlenen Tweaks anwenden'
+    Write-Host '  b       = Benchmark ausfuehren (Vorher/Nachher-Vergleich)'
     Write-Host '  w       = Wiederherstellungspunkt erstellen'
     Write-Host '  t       = Temp-Dateien bereinigen'
     Write-Host '  q       = Beenden'
@@ -110,6 +112,21 @@ while ($true) {
                 foreach ($t in $tweaks | Where-Object { $_.recommended -and -not (Test-TweakApplied $_) }) {
                     Invoke-TweakApply $t -DryRun:$DryRun
                     Write-Host "  '$($t.name)' angewendet." -ForegroundColor Green
+                }
+            }
+            '^b$' {
+                $history = @(Get-BenchmarkHistory)
+                $label = if ($history.Count -eq 0) { 'vorher' } else { 'nachher' }
+                Write-Host "  Starte Benchmark ('$label') - dauert ca. 10 Sekunden, bitte PC nicht benutzen..." -ForegroundColor Cyan
+                $result = Invoke-Benchmark -Label $label
+                Write-Host ("  CPU: {0:N0} Hashes/s | RAM: {1:N0} MB/s | Disk: {2:N0}/{3:N0} MB/s (w/r) | Prozessstart: {4} ms" -f `
+                    $result.cpuHashesSec, $result.memCopyMBs, $result.diskWriteMBs, $result.diskReadMBs, $result.spawnMs) -ForegroundColor Green
+                if ($history.Count -gt 0) {
+                    Write-Host "  Vergleich mit erstem Lauf ($($history[0].timestamp)):"
+                    Compare-Benchmark -Before $history[0] -After $result
+                }
+                else {
+                    Write-Host '  Basiswert gespeichert. Wende jetzt Tweaks an und starte den Benchmark danach erneut.' -ForegroundColor DarkYellow
                 }
             }
             '^w$' {
