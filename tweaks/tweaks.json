@@ -160,6 +160,31 @@
       ]
     },
     {
+      "id": "perf-animations-off",
+      "name": "Fensteranimationen deaktivieren",
+      "category": "Performance",
+      "description": "Schaltet Fenster- und Taskleisten-Animationen ab. Menues und Fenster reagieren dadurch sofort - besonders auf schwaecherer Hardware spuerbar.",
+      "recommended": false,
+      "note": "Wirkt nach Neuanmeldung.",
+      "ops": [
+        { "hive": "HKCU", "path": "Control Panel\\Desktop\\WindowMetrics", "name": "MinAnimate", "type": "String", "value": "0" },
+        { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "TaskbarAnimations", "type": "DWord", "value": 0 }
+      ]
+    },
+    {
+      "id": "perf-mouse-accel-off",
+      "name": "Mausbeschleunigung deaktivieren",
+      "category": "Performance",
+      "description": "Deaktiviert 'Zeigerpraezision verbessern'. Die Mausbewegung wird 1:1 uebertragen - fuer praezises Zielen (Gaming, Bildbearbeitung) meist erwuenscht.",
+      "recommended": false,
+      "note": "Wirkt nach Neuanmeldung.",
+      "ops": [
+        { "hive": "HKCU", "path": "Control Panel\\Mouse", "name": "MouseSpeed", "type": "String", "value": "0" },
+        { "hive": "HKCU", "path": "Control Panel\\Mouse", "name": "MouseThreshold1", "type": "String", "value": "0" },
+        { "hive": "HKCU", "path": "Control Panel\\Mouse", "name": "MouseThreshold2", "type": "String", "value": "0" }
+      ]
+    },
+    {
       "id": "priv-telemetry-min",
       "name": "Telemetrie auf Minimum",
       "category": "Datenschutz",
@@ -231,6 +256,51 @@
       "minBuild": 22000,
       "ops": [
         { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "Start_IrisRecommendations", "type": "DWord", "value": 0 }
+      ]
+    },
+    {
+      "id": "ui-taskbar-end-task",
+      "name": "'Task beenden' im Taskleistenmenue (Win11)",
+      "category": "Explorer & UI",
+      "description": "Fuegt dem Rechtsklick auf ein Taskleisten-Symbol den Eintrag 'Task beenden' hinzu, um haengende Apps direkt zu schliessen.",
+      "recommended": false,
+      "minBuild": 22621,
+      "note": "Wirkt nach Explorer-Neustart.",
+      "ops": [
+        { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced\\TaskbarDeveloperSettings", "name": "TaskbarEndTask", "type": "DWord", "value": 1 }
+      ]
+    },
+    {
+      "id": "ui-show-seconds-clock",
+      "name": "Sekunden in der Taskleisten-Uhr (Win11)",
+      "category": "Explorer & UI",
+      "description": "Zeigt Sekunden in der Uhr der Taskleiste an. Kostet minimal mehr Ressourcen, da die Anzeige jede Sekunde aktualisiert wird.",
+      "recommended": false,
+      "minBuild": 22000,
+      "note": "Wirkt nach Explorer-Neustart.",
+      "ops": [
+        { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "ShowSecondsInSystemClock", "type": "DWord", "value": 1 }
+      ]
+    },
+    {
+      "id": "priv-app-launch-tracking",
+      "name": "App-Start-Tracking deaktivieren",
+      "category": "Datenschutz",
+      "description": "Verhindert, dass Windows aufzeichnet, welche Programme wie oft gestartet werden (Basis fuer 'Meistgenutzt' im Startmenue).",
+      "recommended": false,
+      "note": "Wirkt nach Neuanmeldung.",
+      "ops": [
+        { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "Start_TrackProgs", "type": "DWord", "value": 0 }
+      ]
+    },
+    {
+      "id": "priv-error-reporting-off",
+      "name": "Windows-Fehlerberichterstattung deaktivieren",
+      "category": "Datenschutz",
+      "description": "Schaltet die Windows-Fehlerberichterstattung (WER) ab, die Absturzdaten an Microsoft sendet.",
+      "recommended": false,
+      "ops": [
+        { "hive": "HKLM", "path": "SOFTWARE\\Microsoft\\Windows\\Windows Error Reporting", "name": "Disabled", "type": "DWord", "value": 1 }
       ]
     },
     {
