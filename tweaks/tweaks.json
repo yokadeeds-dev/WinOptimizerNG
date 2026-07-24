@@ -58,6 +58,52 @@
       ]
     },
     {
+      "id": "ui-show-hidden-files",
+      "name": "Versteckte Dateien anzeigen",
+      "category": "Explorer & UI",
+      "description": "Zeigt versteckte Dateien und Ordner im Explorer an. Nuetzlich fuer Fehlersuche; blendet auch Systemdateien nicht ein (nur 'versteckt').",
+      "recommended": false,
+      "note": "Wirkt nach Explorer-Neustart.",
+      "ops": [
+        { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "Hidden", "type": "DWord", "value": 1 }
+      ]
+    },
+    {
+      "id": "ui-taskbar-widgets-off",
+      "name": "Widgets aus Taskleiste entfernen (Win11)",
+      "category": "Explorer & UI",
+      "description": "Blendet das Widgets-Symbol (Wetter/News) aus der Windows-11-Taskleiste aus.",
+      "recommended": false,
+      "minBuild": 22000,
+      "note": "Wirkt nach Explorer-Neustart.",
+      "ops": [
+        { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "TaskbarDa", "type": "DWord", "value": 0 }
+      ]
+    },
+    {
+      "id": "ui-taskbar-chat-off",
+      "name": "Chat-Symbol aus Taskleiste entfernen (Win11)",
+      "category": "Explorer & UI",
+      "description": "Blendet das Chat-/Teams-Symbol aus der Windows-11-Taskleiste aus.",
+      "recommended": false,
+      "minBuild": 22000,
+      "note": "Wirkt nach Explorer-Neustart.",
+      "ops": [
+        { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "TaskbarMn", "type": "DWord", "value": 0 }
+      ]
+    },
+    {
+      "id": "ui-verbose-logon",
+      "name": "Ausfuehrliche Statusmeldungen beim An-/Abmelden",
+      "category": "Explorer & UI",
+      "description": "Zeigt beim Anmelden und Herunterfahren detaillierte Statustexte statt nur 'Bitte warten'. Hilft, langsame Anmeldevorgaenge zu diagnostizieren.",
+      "recommended": false,
+      "note": "Wirkt nach Neustart.",
+      "ops": [
+        { "hive": "HKLM", "path": "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System", "name": "VerboseStatus", "type": "DWord", "value": 1 }
+      ]
+    },
+    {
       "id": "perf-startup-delay",
       "name": "Autostart-Verzoegerung entfernen",
       "category": "Performance",
@@ -99,6 +145,43 @@
       "ops": [
         { "hive": "HKLM", "path": "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile", "name": "NetworkThrottlingIndex", "type": "DWord", "value": 4294967295 },
         { "hive": "HKLM", "path": "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile", "name": "SystemResponsiveness", "type": "DWord", "value": 10 }
+      ]
+    },
+    {
+      "id": "perf-long-paths",
+      "name": "Lange Dateipfade zulassen (>260 Zeichen)",
+      "category": "Performance",
+      "description": "Hebt die alte MAX_PATH-Grenze von 260 Zeichen auf. Verhindert Fehler beim Kopieren tief verschachtelter Ordner. Anwendungen muessen das Feature unterstuetzen.",
+      "recommended": false,
+      "minBuild": 14393,
+      "note": "Wirkt nach Neustart.",
+      "ops": [
+        { "hive": "HKLM", "path": "SYSTEM\\CurrentControlSet\\Control\\FileSystem", "name": "LongPathsEnabled", "type": "DWord", "value": 1 }
+      ]
+    },
+    {
+      "id": "perf-animations-off",
+      "name": "Fensteranimationen deaktivieren",
+      "category": "Performance",
+      "description": "Schaltet Fenster- und Taskleisten-Animationen ab. Menues und Fenster reagieren dadurch sofort - besonders auf schwaecherer Hardware spuerbar.",
+      "recommended": false,
+      "note": "Wirkt nach Neuanmeldung.",
+      "ops": [
+        { "hive": "HKCU", "path": "Control Panel\\Desktop\\WindowMetrics", "name": "MinAnimate", "type": "String", "value": "0" },
+        { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "TaskbarAnimations", "type": "DWord", "value": 0 }
+      ]
+    },
+    {
+      "id": "perf-mouse-accel-off",
+      "name": "Mausbeschleunigung deaktivieren",
+      "category": "Performance",
+      "description": "Deaktiviert 'Zeigerpraezision verbessern'. Die Mausbewegung wird 1:1 uebertragen - fuer praezises Zielen (Gaming, Bildbearbeitung) meist erwuenscht.",
+      "recommended": false,
+      "note": "Wirkt nach Neuanmeldung.",
+      "ops": [
+        { "hive": "HKCU", "path": "Control Panel\\Mouse", "name": "MouseSpeed", "type": "String", "value": "0" },
+        { "hive": "HKCU", "path": "Control Panel\\Mouse", "name": "MouseThreshold1", "type": "String", "value": "0" },
+        { "hive": "HKCU", "path": "Control Panel\\Mouse", "name": "MouseThreshold2", "type": "String", "value": "0" }
       ]
     },
     {
@@ -173,6 +256,94 @@
       "minBuild": 22000,
       "ops": [
         { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "Start_IrisRecommendations", "type": "DWord", "value": 0 }
+      ]
+    },
+    {
+      "id": "ui-taskbar-end-task",
+      "name": "'Task beenden' im Taskleistenmenue (Win11)",
+      "category": "Explorer & UI",
+      "description": "Fuegt dem Rechtsklick auf ein Taskleisten-Symbol den Eintrag 'Task beenden' hinzu, um haengende Apps direkt zu schliessen.",
+      "recommended": false,
+      "minBuild": 22621,
+      "note": "Wirkt nach Explorer-Neustart.",
+      "ops": [
+        { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced\\TaskbarDeveloperSettings", "name": "TaskbarEndTask", "type": "DWord", "value": 1 }
+      ]
+    },
+    {
+      "id": "ui-show-seconds-clock",
+      "name": "Sekunden in der Taskleisten-Uhr (Win11)",
+      "category": "Explorer & UI",
+      "description": "Zeigt Sekunden in der Uhr der Taskleiste an. Kostet minimal mehr Ressourcen, da die Anzeige jede Sekunde aktualisiert wird.",
+      "recommended": false,
+      "minBuild": 22000,
+      "note": "Wirkt nach Explorer-Neustart.",
+      "ops": [
+        { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "ShowSecondsInSystemClock", "type": "DWord", "value": 1 }
+      ]
+    },
+    {
+      "id": "priv-app-launch-tracking",
+      "name": "App-Start-Tracking deaktivieren",
+      "category": "Datenschutz",
+      "description": "Verhindert, dass Windows aufzeichnet, welche Programme wie oft gestartet werden (Basis fuer 'Meistgenutzt' im Startmenue).",
+      "recommended": false,
+      "note": "Wirkt nach Neuanmeldung.",
+      "ops": [
+        { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced", "name": "Start_TrackProgs", "type": "DWord", "value": 0 }
+      ]
+    },
+    {
+      "id": "priv-error-reporting-off",
+      "name": "Windows-Fehlerberichterstattung deaktivieren",
+      "category": "Datenschutz",
+      "description": "Schaltet die Windows-Fehlerberichterstattung (WER) ab, die Absturzdaten an Microsoft sendet.",
+      "recommended": false,
+      "ops": [
+        { "hive": "HKLM", "path": "SOFTWARE\\Microsoft\\Windows\\Windows Error Reporting", "name": "Disabled", "type": "DWord", "value": 1 }
+      ]
+    },
+    {
+      "id": "priv-consumer-features",
+      "name": "Automatische App-Installation deaktivieren",
+      "category": "Datenschutz",
+      "description": "Verhindert, dass Windows still beworbene Apps und Spiele (z.B. Candy Crush) fuer neue Benutzerkonten nachinstalliert.",
+      "recommended": true,
+      "ops": [
+        { "hive": "HKLM", "path": "SOFTWARE\\Policies\\Microsoft\\Windows\\CloudContent", "name": "DisableWindowsConsumerFeatures", "type": "DWord", "value": 1 }
+      ]
+    },
+    {
+      "id": "priv-lockscreen-spotlight",
+      "name": "Tipps & Werbung am Sperrbildschirm aus",
+      "description": "Deaktiviert 'lustige Fakten, Tipps und mehr' (Windows-Spotlight-Werbung) auf dem Sperrbildschirm.",
+      "category": "Datenschutz",
+      "recommended": true,
+      "ops": [
+        { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager", "name": "RotatingLockScreenOverlayEnabled", "type": "DWord", "value": 0 },
+        { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager", "name": "SubscribedContent-338387Enabled", "type": "DWord", "value": 0 }
+      ]
+    },
+    {
+      "id": "priv-suggested-settings-content",
+      "name": "Vorgeschlagene Inhalte in Einstellungen aus",
+      "category": "Datenschutz",
+      "description": "Entfernt die beworbenen Vorschlaege und Tipps innerhalb der Einstellungen-App.",
+      "recommended": true,
+      "ops": [
+        { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager", "name": "SubscribedContent-338393Enabled", "type": "DWord", "value": 0 },
+        { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager", "name": "SubscribedContent-353694Enabled", "type": "DWord", "value": 0 },
+        { "hive": "HKCU", "path": "Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager", "name": "SubscribedContent-353696Enabled", "type": "DWord", "value": 0 }
+      ]
+    },
+    {
+      "id": "priv-inking-typing",
+      "name": "Personalisierung durch Eingabe/Freihand aus",
+      "category": "Datenschutz",
+      "description": "Deaktiviert das Sammeln von Tipp- und Freihand-Mustern, mit denen Windows die Eingabe personalisiert.",
+      "recommended": true,
+      "ops": [
+        { "hive": "HKCU", "path": "Software\\Microsoft\\Input\\TIPC", "name": "Enabled", "type": "DWord", "value": 0 }
       ]
     }
   ]

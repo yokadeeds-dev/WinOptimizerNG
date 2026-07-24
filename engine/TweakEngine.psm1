@@ -210,5 +210,64 @@ function Clear-TempFiles {
     [math]::Round($freed / 1MB, 1)
 }
 
+function Get-UsbGhostDevices {
+    # Nicht-vorhandene ("Ghost") USB-Geraete: Reste von je angeschlossenen
+    # USB-Geraeten und -Speichern (USB\, USBSTOR\), die aktuell nicht verbunden
+    # sind (Present = $false). Wiederanstecken installiert sie automatisch neu.
+    Get-PnpDevice -ErrorAction SilentlyContinue | Where-Object {
+        -not $_.Present -and
+        ($_.InstanceId -like 'USB\*' -or $_.InstanceId -like 'USBSTOR\*')
+    } | ForEach-Object {
+        [pscustomobject]@{
+            InstanceId   = $_.InstanceId
+            FriendlyName = if ($_.FriendlyName) { $_.FriendlyName } else { $_.Name }
+            Class        = $_.Class
+        }
+    }
+}
+
+function Test-CanRemoveDevice {
+    # 'pnputil /remove-device' gibt es zuverlaessig erst ab Windows 11 (Build 22000).
+    [Environment]::OSVersion.Version.Build -ge 22000
+}
+
+function Remove-UsbGhostDevices {
+    # Entfernt die uebergebenen USB-Geraeteleichen per pnputil. Keine Registry-
+    # Sicherung noetig - das Wiederanstecken des Geraets stellt den Eintrag her.
+    param(
+        [Parameter(Mandatory)][AllowEmptyCollection()][object[]]$Devices,
+        [switch]$DryRun
+    )
+    $removed = 0
+    $failed = 0
+    $canRemove = Test-CanRemoveDevice
+
+    foreach ($d in $Devices) {
+        if ($DryRun) {
+            Write-Log "DRY-RUN: wuerde USB-Geraeteleiche entfernen: $($d.InstanceId) ($($d.FriendlyName))"
+            continue
+        }
+        if (-not $canRemove) { continue }
+
+        $out = & pnputil.exe /remove-device "$($d.InstanceId)" 2>&1
+        if ($LASTEXITCODE -eq 0) {
+            $removed++
+            Write-Log "USB-Geraeteleiche entfernt: $($d.InstanceId) ($($d.FriendlyName))"
+        }
+        else {
+            $failed++
+            Write-Log "USB-Entfernung fehlgeschlagen: $($d.InstanceId) - $out" -Level WARN
+        }
+    }
+
+    [pscustomobject]@{
+        Total     = $Devices.Count
+        Removed   = $removed
+        Failed    = $failed
+        Supported = $canRemove
+    }
+}
+
 Export-ModuleMember -Function Get-Tweaks, Test-TweakApplied, Invoke-TweakApply,
-    Invoke-TweakRevert, New-SystemRestorePoint, Clear-TempFiles, Write-Log
+    Invoke-TweakRevert, New-SystemRestorePoint, Clear-TempFiles,
+    Get-UsbGhostDevices, Remove-UsbGhostDevices, Test-CanRemoveDevice, Write-Log
