@@ -58,6 +58,7 @@ function Show-Menu {
     Write-Host '  b       = Benchmark ausfuehren (Vorher/Nachher-Vergleich)'
     Write-Host '  w       = Wiederherstellungspunkt erstellen'
     Write-Host '  t       = Temp-Dateien bereinigen'
+    Write-Host '  u       = USB-Geraeteleichen suchen und entfernen'
     Write-Host '  q       = Beenden'
     Write-Host ''
 }
@@ -140,6 +141,37 @@ while ($true) {
             '^t$' {
                 $mb = Clear-TempFiles -DryRun:$DryRun
                 Write-Host "  $mb MB freigegeben." -ForegroundColor Green
+            }
+            '^u$' {
+                $ghosts = @(Get-UsbGhostDevices)
+                if ($ghosts.Count -eq 0) {
+                    Write-Host '  Keine USB-Geraeteleichen gefunden.' -ForegroundColor Green
+                }
+                else {
+                    Write-Host "  $($ghosts.Count) nicht-vorhandene USB-Geraete gefunden:" -ForegroundColor Cyan
+                    foreach ($g in $ghosts) {
+                        Write-Host ("    - {0}  [{1}]" -f $g.FriendlyName, $g.InstanceId) -ForegroundColor DarkGray
+                    }
+                    if ($DryRun) {
+                        Remove-UsbGhostDevices -Devices $ghosts -DryRun | Out-Null
+                        Write-Host '  DRY-RUN: Es wurde nichts entfernt (siehe Log).' -ForegroundColor Yellow
+                    }
+                    elseif (-not (Test-CanRemoveDevice)) {
+                        Write-Host '  Automatisches Entfernen benoetigt Windows 11 (pnputil /remove-device).' -ForegroundColor Yellow
+                        Write-Host '  Auf diesem System die Geraete bitte im Geraete-Manager manuell entfernen' -ForegroundColor Yellow
+                        Write-Host '  (Ansicht > Ausgeblendete Geraete anzeigen).' -ForegroundColor Yellow
+                    }
+                    else {
+                        $confirm = Read-Host "  Diese $($ghosts.Count) Geraete entfernen? Wiederanstecken installiert sie neu. (j/n)"
+                        if ($confirm -match '^[jJyY]') {
+                            $r = Remove-UsbGhostDevices -Devices $ghosts
+                            Write-Host "  Entfernt: $($r.Removed), fehlgeschlagen: $($r.Failed)." -ForegroundColor Green
+                        }
+                        else {
+                            Write-Host '  Abgebrochen.' -ForegroundColor Yellow
+                        }
+                    }
+                }
             }
             '^i\s+\d+$' {
                 $idx = [int]($choice -replace '^i\s+') - 1

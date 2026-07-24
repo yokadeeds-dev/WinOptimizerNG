@@ -65,6 +65,21 @@ Felder: `id`, `name`, `category`, `description`, `recommended`, optional
 `minBuild` (Windows-Build-Nummer, z.B. 22000 = Windows 11) und `note`,
 dazu `ops` mit den Registry-Operationen.
 
+## Wartung
+
+Neben den Tweaks bietet das Menü zwei Aufräum-Aktionen, die **keine** Tweaks
+sind (kein Undo, da nichts an der Registry _umgestellt_ wird):
+
+- `t` — **Temp-Dateien bereinigen** (`%TEMP%` und `Windows\Temp`).
+- `u` — **USB-Geräteleichen entfernen**: listet nicht mehr vorhandene
+  USB-Geräte (`USB\`- und `USBSTOR\`-Reste je angeschlossener Sticks, Hubs,
+  Adapter …) auf, zeigt sie zuerst an und entfernt sie erst nach
+  ausdrücklicher Bestätigung. Das Wiederanstecken eines Geräts installiert
+  seinen Eintrag automatisch neu — die Aktion ist damit selbstheilend. Das
+  automatische Entfernen nutzt `pnputil /remove-device` und benötigt
+  Windows 11; unter Windows 10 wird stattdessen der manuelle Weg über den
+  Geräte-Manager genannt. Unter `-DryRun` wird nur aufgelistet, nichts entfernt.
+
 ## Grundsätze
 
 1. **Kein Tweak ohne Beleg** — jeder Eintrag beschreibt, was er wirklich tut.
