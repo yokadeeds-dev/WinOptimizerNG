@@ -80,12 +80,31 @@ function Save-State {
     $State | ConvertTo-Json -Depth 6 | Set-Content $script:StateFile -Encoding UTF8
 }
 
+function ConvertTo-UInt32 {
+    # REG_DWORD wird von .NET als Int32 gelesen; Werte mit gesetztem High-Bit
+    # (z.B. 0xFFFFFFFF) kommen dadurch negativ an (-> -1). Auf die vorzeichenlose
+    # 32-Bit-Darstellung normalisieren, damit der Vergleich mit dem Zielwert
+    # (z.B. 4294967295 aus tweaks.json) korrekt ist.
+    param($Value)
+    [uint32]([int64]$Value -band 0xFFFFFFFFL)
+}
+
+function Test-OpApplied {
+    # true, wenn der aktuelle Registry-Wert dem Zielwert des Ops entspricht.
+    # DWords werden numerisch (vorzeichenlos) verglichen, alles andere als String.
+    param($Op, $Current)
+    if (-not $Current.valueExists) { return $false }
+    if ($Op.type -eq 'DWord') {
+        return (ConvertTo-UInt32 $Current.value) -eq (ConvertTo-UInt32 $Op.value)
+    }
+    "$($Current.value)" -eq "$($Op.value)"
+}
+
 function Test-TweakApplied {
     # true, wenn alle Registry-Werte des Tweaks dem Zielwert entsprechen.
     param($Tweak)
     foreach ($op in $Tweak.ops) {
-        $cur = Get-RegCurrent $op
-        if (-not $cur.valueExists -or "$($cur.value)" -ne "$($op.value)") {
+        if (-not (Test-OpApplied $op (Get-RegCurrent $op))) {
             return $false
         }
     }

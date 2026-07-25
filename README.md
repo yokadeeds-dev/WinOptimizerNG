@@ -39,26 +39,38 @@ Registry-Werte.
 ```
 WinOptimizerNG.ps1        Einstieg: Elevation, interaktives Menü
 engine\TweakEngine.psm1   Engine: Status, Apply, Revert, Backup, Log
-engine\Benchmark.psm1     Vorher/Nachher-Benchmark (CPU, RAM, Disk, Prozessstart)
+engine\Benchmark.psm1     Systemstart-Analyse (Boot-/Autostart-Vergleich)
 tweaks\tweaks.json        Tweak-Definitionen als reine Daten
+tests\TweakEngine.Tests.ps1  Pester-Tests: Apply/Revert-Round-Trip, DWord-Vergleich
 state.json                (zur Laufzeit) Originalwerte für Undo
 logs\                     (zur Laufzeit) Tages-Logdateien
 benchmarks\               (zur Laufzeit) gespeicherte Benchmark-Läufe
 ```
 
-## Vorher/Nachher-Benchmark
+## Systemstart-Analyse (Vorher/Nachher)
 
-Menüpunkt `b` misst in ~20 Sekunden CPU (Hashes/s), RAM-Durchsatz (MB/s),
-Datenträger (sequenziell schreiben/lesen) und Prozessstart-Zeit — jede
-Metrik als **Median aus 3 Messungen**, um Ausreißer durch Hintergrund-
-aktivität zu glätten. Der erste Lauf wird als Basiswert ("vorher")
-gespeichert; jeder weitere Lauf zeigt automatisch eine Vergleichstabelle
-mit prozentualem Delta.
+Menüpunkt `b` misst genau die Größen, die die Tweaks **tatsächlich bewegen** —
+statt CPU-/RAM-Mikrobenchmarks, die kein Registry-Tweak dieses Tools verändert:
 
-Jede Metrik hat ein **eigenes Rauschband** (empirisch ermittelte Schwankung
-zwischen identischen Läufen, z.B. RAM ±12%, CPU ±5%). Deltas innerhalb des
-Bands werden als "Rauschen" ausgewiesen statt als Erfolg verkauft — echte
-Wirkung zeigt sich nur außerhalb.
+- **Bootzeit gesamt** und **Zeit bis Desktop** (`MainPathBootTime`)
+- **Autostart-Last** (`BootPostBootTime`: Zeit vom Desktop bis das System im
+  Leerlauf ist — das, was Autostart-Programme und die Start­verzögerung kosten)
+- **Anzahl Autostart-Einträge** und der Wert der **Startverzögerung**
+
+Die Boot-Werte kommen aus dem Windows-Ereignisprotokoll
+*Diagnostics-Performance* (Event 100) und beziehen sich auf den **letzten echten
+Systemstart**. Sie ändern sich deshalb **erst nach einem Neustart** — der
+ehrliche Ablauf ist:
+
+1. `b` → Basiswert ("vorher") speichern
+2. Tweaks anwenden (z.B. `perf-startup-delay`)
+3. **Windows neu starten**
+4. `b` → automatischer Vergleich mit prozentualem Delta
+
+Boot-Metriken haben ein **Rauschband** (übliche Schwankung zwischen zwei echten
+Boots, z.B. ±12%); Deltas darunter werden als "Rauschen" ausgewiesen statt als
+Erfolg verkauft. Zähler wie die Autostart-Anzahl werden exakt verglichen. Stammen
+beide Messungen vom selben Bootvorgang, weist das Tool ausdrücklich darauf hin.
 
 Neue Tweaks werden **nur** in `tweaks.json` ergänzt — kein Code nötig.
 Felder: `id`, `name`, `category`, `description`, `recommended`, optional
