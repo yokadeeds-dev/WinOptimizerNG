@@ -1,94 +1,59 @@
-# Benchmark.psm1 - Vorher/Nachher-Leistungsmessung fuer WinOptimizerNG.
-# Vier Micro-Benchmarks, jede Metrik als Median aus 3 Messungen (~20 Sekunden
-# gesamt). Ergebnisse werden als JSON in benchmarks\ gespeichert;
-# Compare-Benchmark zeigt die Differenz zweier Laeufe und blendet Deltas
-# innerhalb des metrik-spezifischen Rauschbands als Rauschen aus.
+# Benchmark.psm1 - Systemstart-Analyse fuer WinOptimizerNG.
+# Misst die Groessen, die die Tweaks tatsaechlich bewegen: Boot- und
+# Nachstart-Zeit (aus dem Windows-Ereignisprotokoll Diagnostics-Performance)
+# sowie Autostart-Eintraege und Start-Verzoegerungen. Anders als CPU-/RAM-/
+# Disk-Mikrobenchmarks reagieren diese Werte auf Autostart- und Startverzoege-
+# rungs-Tweaks (perf-startup-delay, priv-*, weniger Autostarts).
+#
+# WICHTIG: Boot-Werte stammen aus dem LETZTEN echten Systemstart. Sie aendern
+# sich erst NACH einem Neustart. Ablauf fuer einen ehrlichen Vergleich:
+#   1. Benchmark ('vorher') -> speichert aktuelle Boot-/Autostart-Werte
+#   2. Tweaks anwenden
+#   3. Windows neu starten
+#   4. Benchmark ('nachher') -> vergleicht mit dem neuen Bootvorgang
 
 $script:Root     = Split-Path $PSScriptRoot -Parent
 $script:BenchDir = Join-Path $script:Root 'benchmarks'
-$script:Samples  = 3
 
-function Get-Median {
-    param([double[]]$Values)
-    $sorted = $Values | Sort-Object
-    $mid = [int][math]::Floor($sorted.Count / 2)
-    if ($sorted.Count % 2 -eq 1) { $sorted[$mid] }
-    else { ($sorted[$mid - 1] + $sorted[$mid]) / 2 }
-}
-
-function Measure-CpuScore {
-    # SHA256-Hashes pro Sekunde ueber 2 Sekunden - reine CPU-Last, single-thread.
-    $sha = [System.Security.Cryptography.SHA256]::Create()
-    $buf = [byte[]]::new(8192)
-    $ops = 0
-    $sw = [System.Diagnostics.Stopwatch]::StartNew()
-    while ($sw.ElapsedMilliseconds -lt 2000) {
-        [void]$sha.ComputeHash($buf)
-        $ops++
-    }
-    $sw.Stop()
-    $sha.Dispose()
-    [math]::Round($ops / $sw.Elapsed.TotalSeconds)
-}
-
-function Measure-MemoryScore {
-    # Speicher-Durchsatz in MB/s: 64-MB-Block mehrfach kopieren.
-    $size = 64MB
-    $src = [byte[]]::new($size)
-    $dst = [byte[]]::new($size)
-    $copies = 0
-    $sw = [System.Diagnostics.Stopwatch]::StartNew()
-    while ($sw.ElapsedMilliseconds -lt 2000) {
-        [Array]::Copy($src, $dst, $size)
-        $copies++
-    }
-    $sw.Stop()
-    [math]::Round(($copies * 64) / $sw.Elapsed.TotalSeconds)
-}
-
-function Measure-DiskScore {
-    # Sequenzielles Schreiben und Lesen einer 100-MB-Datei in MB/s.
-    # Das Lesen erfolgt direkt nach dem Schreiben und profitiert vom
-    # Windows-Cache - fuer Vorher/Nachher-Vergleiche trotzdem brauchbar,
-    # da beide Laeufe gleich behandelt werden.
-    $file = Join-Path $env:TEMP 'winoptng-bench.tmp'
-    $sizeMB = 100
-    $buf = [byte[]]::new(1MB)
-    (New-Object Random).NextBytes($buf)
+function Get-BootPerformance {
+    # Liest die letzte Boot-Leistungsmessung (Event 100) aus dem
+    # Diagnostics-Performance-Log. Alle Zeiten in ms. $null, wenn das Log
+    # leer/deaktiviert ist (Dienst DPS aus) oder der Zugriff scheitert.
     try {
-        $sw = [System.Diagnostics.Stopwatch]::StartNew()
-        $fs = [System.IO.File]::Create($file)
-        for ($i = 0; $i -lt $sizeMB; $i++) { $fs.Write($buf, 0, $buf.Length) }
-        $fs.Flush($true)
-        $fs.Close()
-        $sw.Stop()
-        $writeMBs = [math]::Round($sizeMB / $sw.Elapsed.TotalSeconds)
-
-        $sw.Restart()
-        $fs = [System.IO.File]::OpenRead($file)
-        while ($fs.Read($buf, 0, $buf.Length) -gt 0) { }
-        $fs.Close()
-        $sw.Stop()
-        $readMBs = [math]::Round($sizeMB / $sw.Elapsed.TotalSeconds)
-
-        [pscustomobject]@{ writeMBs = $writeMBs; readMBs = $readMBs }
+        $ev = Get-WinEvent -FilterHashtable @{
+            LogName = 'Microsoft-Windows-Diagnostics-Performance/Operational'
+            Id      = 100
+        } -MaxEvents 1 -ErrorAction Stop
     }
-    finally {
-        Remove-Item $file -Force -ErrorAction SilentlyContinue
+    catch {
+        Write-Log "Boot-Leistungsdaten nicht verfuegbar: $($_.Exception.Message)" -Level WARN
+        return $null
+    }
+
+    $data = @{}
+    foreach ($d in ([xml]$ev.ToXml()).Event.EventData.Data) { $data[$d.Name] = $d.'#text' }
+    [pscustomobject]@{
+        bootTimeMs     = [int]$data['BootTime']          # Gesamt-Bootzeit
+        mainPathBootMs = [int]$data['MainPathBootTime']  # bis nutzbarer Desktop
+        postBootMs     = [int]$data['BootPostBootTime']  # Desktop -> System im Leerlauf (Autostart-Last)
+        bootEventTime  = $ev.TimeCreated.ToString('yyyy-MM-dd HH:mm:ss')
     }
 }
 
-function Measure-ProcessSpawn {
-    # Durchschnittliche Zeit in ms, um einen Prozess zu starten und zu beenden.
-    # Reagiert auf Systemlast durch Hintergrunddienste.
-    $runs = 8
-    $sw = [System.Diagnostics.Stopwatch]::StartNew()
-    for ($i = 0; $i -lt $runs; $i++) {
-        $p = Start-Process cmd.exe -ArgumentList '/c exit' -WindowStyle Hidden -PassThru
-        $p.WaitForExit()
+function Get-AutostartCount {
+    # Anzahl der Autostart-Eintraege (Run-Keys + Startup-Ordner + Aufgaben).
+    @(Get-CimInstance Win32_StartupCommand -ErrorAction SilentlyContinue).Count
+}
+
+function Get-StartupDelayMs {
+    # StartupDelayInMSec: direkt von perf-startup-delay betroffen.
+    # $null, wenn der Wert fehlt (dann gilt der Windows-Default).
+    $p = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Serialize'
+    if (Test-Path $p) {
+        $v = (Get-ItemProperty $p -Name StartupDelayInMSec -ErrorAction SilentlyContinue).StartupDelayInMSec
+        if ($null -ne $v) { return [int]$v }
     }
-    $sw.Stop()
-    [math]::Round($sw.Elapsed.TotalMilliseconds / $runs, 1)
+    $null
 }
 
 function Get-SystemSnapshot {
@@ -103,29 +68,22 @@ function Get-SystemSnapshot {
 }
 
 function Invoke-Benchmark {
-    # Fuehrt alle Messungen aus, speichert das Ergebnis und liefert es zurueck.
+    # Erfasst die aktuellen Systemstart-Kennzahlen, speichert sie und gibt sie
+    # zurueck. Laeuft in Sekunden (nur Ereignisprotokoll- und WMI-Abfragen).
     param([string]$Label = '')
 
-    $n = $script:Samples
-    Write-Host "  Messe CPU ($n Messungen)..." -ForegroundColor DarkGray
-    $cpu = Get-Median @(1..$n | ForEach-Object { Measure-CpuScore })
-    Write-Host "  Messe RAM-Durchsatz ($n Messungen)..." -ForegroundColor DarkGray
-    $mem = Get-Median @(1..$n | ForEach-Object { Measure-MemoryScore })
-    Write-Host "  Messe Datentraeger ($n Messungen)..." -ForegroundColor DarkGray
-    $diskRuns = @(1..$n | ForEach-Object { Measure-DiskScore })
-    Write-Host "  Messe Prozessstart ($n Messungen)..." -ForegroundColor DarkGray
-    $spawn = Get-Median @(1..$n | ForEach-Object { Measure-ProcessSpawn })
+    $boot = Get-BootPerformance
 
     $result = [pscustomobject]@{
-        timestamp    = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
-        label        = $Label
-        samples      = $n
-        cpuHashesSec = [math]::Round($cpu)
-        memCopyMBs   = [math]::Round($mem)
-        diskWriteMBs = [math]::Round((Get-Median $diskRuns.writeMBs))
-        diskReadMBs  = [math]::Round((Get-Median $diskRuns.readMBs))
-        spawnMs      = [math]::Round($spawn, 1)
-        system       = Get-SystemSnapshot
+        timestamp      = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
+        label          = $Label
+        bootTimeMs     = if ($boot) { $boot.bootTimeMs }     else { $null }
+        mainPathBootMs = if ($boot) { $boot.mainPathBootMs } else { $null }
+        postBootMs     = if ($boot) { $boot.postBootMs }     else { $null }
+        bootEventTime  = if ($boot) { $boot.bootEventTime }  else { $null }
+        autostartCount = Get-AutostartCount
+        startupDelayMs = Get-StartupDelayMs
+        system         = Get-SystemSnapshot
     }
 
     if (-not (Test-Path $script:BenchDir)) {
@@ -145,46 +103,62 @@ function Get-BenchmarkHistory {
 }
 
 function Compare-Benchmark {
-    # Gibt eine Vergleichstabelle zweier Laeufe aus. HigherIsBetter gilt fuer
-    # alle Metriken ausser spawnMs. noisePct ist das empirisch ermittelte
-    # Rauschband der jeweiligen Metrik zwischen identischen Laeufen - Deltas
-    # darunter gelten nicht als Wirkung.
+    # Vergleichstabelle zweier Laeufe. Bei allen Start-Metriken ist weniger
+    # besser. noisePct ist die uebliche Schwankung zwischen zwei echten Boots;
+    # Deltas darunter gelten als Rauschen, nicht als Wirkung. autostartCount und
+    # startupDelayMs sind exakte Zaehler/Einstellungen -> kein Rauschband.
     param($Before, $After)
 
     $metrics = @(
-        @{ key = 'cpuHashesSec'; name = 'CPU (Hashes/s)';        higherBetter = $true;  noisePct = 5 },
-        @{ key = 'memCopyMBs';   name = 'RAM-Durchsatz (MB/s)';  higherBetter = $true;  noisePct = 12 },
-        @{ key = 'diskWriteMBs'; name = 'Disk schreiben (MB/s)'; higherBetter = $true;  noisePct = 12 },
-        @{ key = 'diskReadMBs';  name = 'Disk lesen (MB/s)';     higherBetter = $true;  noisePct = 8 },
-        @{ key = 'spawnMs';      name = 'Prozessstart (ms)';     higherBetter = $false; noisePct = 15 }
+        @{ key = 'bootTimeMs';     name = 'Bootzeit gesamt (ms)';   noisePct = 12 },
+        @{ key = 'mainPathBootMs'; name = 'Zeit bis Desktop (ms)';  noisePct = 12 },
+        @{ key = 'postBootMs';     name = 'Autostart-Last (ms)';    noisePct = 20 },
+        @{ key = 'autostartCount'; name = 'Autostart-Eintraege';    noisePct = 0  },
+        @{ key = 'startupDelayMs'; name = 'Startverzoegerung (ms)'; noisePct = 0  }
     )
+
+    # Gleicher Bootvorgang? Dann sind die Boot-Werte identisch - Hinweis geben.
+    if ($Before.bootEventTime -and $Before.bootEventTime -eq $After.bootEventTime) {
+        Write-Host ''
+        Write-Host '  Hinweis: Beide Messungen stammen vom selben Bootvorgang.' -ForegroundColor Yellow
+        Write-Host '  Fuer einen echten Boot-Vergleich bitte neu starten und danach erneut messen.' -ForegroundColor Yellow
+    }
 
     Write-Host ''
     Write-Host ("  {0,-24} {1,12} {2,12} {3,10}  {4}" -f 'Metrik', 'Vorher', 'Nachher', 'Delta', 'Bewertung') -ForegroundColor Cyan
     Write-Host ('  ' + '-' * 74)
 
     foreach ($m in $metrics) {
-        $b = [double]$Before.($m.key)
-        $a = [double]$After.($m.key)
-        if ($b -eq 0) { continue }
-        $delta = (($a - $b) / $b) * 100
-        $improved = if ($m.higherBetter) { $delta -gt 0 } else { $delta -lt 0 }
+        $bRaw = $Before.($m.key)
+        $aRaw = $After.($m.key)
+
+        # Nicht verfuegbare Werte (z.B. kein Boot-Log) sauber ausweisen.
+        if ($null -eq $bRaw -or $null -eq $aRaw) {
+            Write-Host ("  {0,-24} {1,12} {2,12} {3,10}  {4}" -f $m.name, '(n/v)', '(n/v)', '-', 'keine Daten') -ForegroundColor DarkGray
+            continue
+        }
+
+        $b = [double]$bRaw
+        $a = [double]$aRaw
+        $delta = if ($b -eq 0) { if ($a -eq 0) { 0 } else { 100 } } else { (($a - $b) / $b) * 100 }
+        $improved = $a -lt $b   # bei allen Start-Metriken: weniger = besser
+
         if ([math]::Abs($delta) -lt $m.noisePct) {
-            $color = 'DarkGray'
-            $verdict = "Rauschen (<$($m.noisePct)%)"
+            $color = 'DarkGray'; $verdict = "Rauschen (<$($m.noisePct)%)"
+        }
+        elseif ($a -eq $b) {
+            $color = 'DarkGray'; $verdict = 'unveraendert'
         }
         elseif ($improved) {
-            $color = 'Green'
-            $verdict = 'besser'
+            $color = 'Green'; $verdict = 'besser'
         }
         else {
-            $color = 'Red'
-            $verdict = 'schlechter'
+            $color = 'Red'; $verdict = 'schlechter'
         }
         Write-Host ("  {0,-24} {1,12:N0} {2,12:N0} {3,9:+0.0;-0.0}%  {4}" -f $m.name, $b, $a, $delta, $verdict) -ForegroundColor $color
     }
     Write-Host ''
-    Write-Host '  Rauschband je Metrik: empirische Schwankung zwischen identischen Laeufen.' -ForegroundColor DarkGray
+    Write-Host '  Boot-Werte stammen aus dem letzten Systemstart und aendern sich erst nach einem Neustart.' -ForegroundColor DarkGray
 }
 
 Export-ModuleMember -Function Invoke-Benchmark, Get-BenchmarkHistory, Compare-Benchmark

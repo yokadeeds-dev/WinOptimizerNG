@@ -55,7 +55,7 @@ function Show-Menu {
     Write-Host '  Nummer  = Tweak umschalten (an/aus)   * = empfohlen'
     Write-Host '  i <Nr>  = Details zu einem Tweak'
     Write-Host '  a       = alle empfohlenen Tweaks anwenden'
-    Write-Host '  b       = Benchmark ausfuehren (Vorher/Nachher-Vergleich)'
+    Write-Host '  b       = Systemstart analysieren (Boot-/Autostart-Vergleich)'
     Write-Host '  w       = Wiederherstellungspunkt erstellen'
     Write-Host '  t       = Temp-Dateien bereinigen'
     Write-Host '  q       = Beenden'
@@ -117,16 +117,22 @@ while ($true) {
             '^b$' {
                 $history = @(Get-BenchmarkHistory)
                 $label = if ($history.Count -eq 0) { 'vorher' } else { 'nachher' }
-                Write-Host "  Starte Benchmark ('$label') - dauert ca. 20 Sekunden, bitte PC nicht benutzen..." -ForegroundColor Cyan
+                Write-Host "  Lese Systemstart-Daten ('$label')..." -ForegroundColor Cyan
                 $result = Invoke-Benchmark -Label $label
-                Write-Host ("  CPU: {0:N0} Hashes/s | RAM: {1:N0} MB/s | Disk: {2:N0}/{3:N0} MB/s (w/r) | Prozessstart: {4} ms" -f `
-                    $result.cpuHashesSec, $result.memCopyMBs, $result.diskWriteMBs, $result.diskReadMBs, $result.spawnMs) -ForegroundColor Green
+                if ($null -ne $result.bootTimeMs) {
+                    Write-Host ("  Bootzeit: {0:N0} ms | bis Desktop: {1:N0} ms | Autostart-Last: {2:N0} ms | Autostarts: {3} | Start-Delay: {4}" -f `
+                        $result.bootTimeMs, $result.mainPathBootMs, $result.postBootMs, $result.autostartCount, `
+                        $(if ($null -ne $result.startupDelayMs) { "$($result.startupDelayMs) ms" } else { 'Default' })) -ForegroundColor Green
+                }
+                else {
+                    Write-Host ("  Keine Boot-Leistungsdaten verfuegbar (Diagnostics-Performance-Log leer). Autostarts: {0}" -f $result.autostartCount) -ForegroundColor Yellow
+                }
                 if ($history.Count -gt 0) {
                     Write-Host "  Vergleich mit erstem Lauf ($($history[0].timestamp)):"
                     Compare-Benchmark -Before $history[0] -After $result
                 }
                 else {
-                    Write-Host '  Basiswert gespeichert. Wende jetzt Tweaks an und starte den Benchmark danach erneut.' -ForegroundColor DarkYellow
+                    Write-Host '  Basiswert gespeichert. Wende jetzt Tweaks an, starte Windows NEU und miss danach erneut.' -ForegroundColor DarkYellow
                 }
             }
             '^w$' {
